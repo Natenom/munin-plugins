@@ -4,7 +4,7 @@ Several plugins for [MUNIN](http://munin-monitoring.org/).
 ## minecraft_
 Description: Shows user count and RAM usage.
 
-[Project page (German)](http://wiki.natenom.de/minecraft/munin-plugin)
+[Project page (German)](https://wiki.natenom.de/minecraft/munin-plugin)
 
 ### Installation
 As the script needs root rights to work correctly, you must add following
@@ -23,13 +23,16 @@ A MUNIN plugin to query a Mumble-Server (Murmur).
 
 Available data:
 * users (all)
-* users (not authenticated)
-* server uptime in days
+* users (muted)
+* users (registered)
+* users (not registered)
 * ban count
+* channel count/10
+* server uptime in days
 
-Documentation (English): http://wiki.natenom.com/w/Munin_plugin_for_a_Murmur_%28Mumble-Server%29
-Documentation (German): http://wiki.natenom.de/mumble/tools/munin
+Documentation (English): https://wiki.natenom.com/w/Munin_plugin_for_a_Murmur_%28Mumble-Server%29
+Documentation (German): https://wiki.natenom.de/mumble/tools/munin
 
 ### Features
-* Support to set [messagesizemax](http://wiki.natenom.de/mumble/benutzerhandbuch/murmur/messagesizemax) value.
+* Support to set [messagesizemax](https://wiki.natenom.de/mumble/benutzerhandbuch/murmur/messagesizemax) value.
 
