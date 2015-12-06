@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8
 #
-# munin-murmur.py - "murmur stats (User/Bans/Uptime/Channels)" script for munin.
-# Copyright (c) 2014, Natenom / natenom@natenom.name
+# munin-murmur.py
+# Copyright (c) 2010 - 2015, Natenom / natenom@natenom.com
 #
 # All rights reserved.
 #
@@ -33,13 +33,26 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE. 
 
+# Settings for what to show:
+show_users_all = True # All users regardless their state
 
+show_users_muted = True # Server muted, self muted and server suppressed users.
+
+show_users_unregistered = True # Not registered users.
+
+show_users_registered = True # Registered users.
+
+show_ban_count = True # Number of bans on the server; temporary global bans do not count.
+
+show_channel_count = True # Number of channels on the server (including the root channel).
+
+show_uptime = True # Uptime of the server (in days)
 
 #Path to Murmur.ice
-iceslice='/usr/share/Ice/slice/Murmur.ice'
+iceslice = "/usr/share/Ice/slice/Murmur.ice"
 
 #Includepath for Ice, this is default for Debian
-iceincludepath="/usr/share/Ice/slice"
+iceincludepath = "/usr/share/Ice/slice"
 
 #Murmur-Port (not needed to work, only for display purposes)
 serverport=64738
@@ -57,6 +70,9 @@ icesecret="secureme"
 # This value is being interpreted in kibiBytes.
 messagesizemax="65535"
 
+####################################################################
+##### DO NOT TOUCH BELOW THIS LINE UNLESS YOU KNOW WHAT YOU DO #####
+####################################################################
 import Ice, sys
 Ice.loadSlice("--all -I%s %s" % (iceincludepath, iceslice))
 
@@ -75,13 +91,30 @@ if (sys.argv[1:]):
   if (sys.argv[1] == "config"):
     print 'graph_title Murmur (Port %s)' % (serverport)
     print 'graph_vlabel Count'
-    print 'users.label Users (All)'
-    print 'usersnotauth.label Users (Not authenticated)'
-    print 'uptime.label Uptime in days'
-    print 'chancount.label Channelcount/10'
-    print 'bancount.label Bans on server'
-    sys.exit(0)
+    print 'graph_category mumble'
 
+    if show_users_all:
+      print 'usersall.label Users (All)'
+
+    if show_users_muted:
+      print 'usersmuted.label Users (Muted)'
+
+    if show_users_unregistered:
+      print 'usersunregistered.label Users (Not registered)'
+
+    if show_users_registered:
+      print 'usersregistered.label Users (Registered)'
+
+    if show_ban_count:
+      print 'bancount.label Bans on server'
+
+    if show_channel_count:
+      print 'channelcount.label Channel count/10'
+
+    if show_uptime:
+      print 'uptime.label Uptime in days'
+
+    sys.exit(0)
 
 meta = Murmur.MetaPrx.checkedCast(ice.stringToProxy("Meta:tcp -h 127.0.0.1 -p %s" % (iceport)))
 try:
@@ -91,17 +124,54 @@ except Murmur.InvalidSecretException:
     ice.shutdown()
     sys.exit(1)
 
-#count users
-usersnotauth=0
-users=server.getUsers()
-for key in users.keys():
-  if (users[key].userid == -1):
-    usersnotauth+=1
+# Initialize
+users_all = 0
+users_muted = 0
+users_unregistered = 0
+users_registered = 0
+ban_count = 0
+channel_count = 0
+uptime = 0
 
-print "users.value %i" % (len(users))
-print "uptime.value %.2f" % (float(meta.getUptime())/60/60/24)
-print "chancount.value %.1f" % (len(server.getChannels())/10)
-print "bancount.value %i" % (len(server.getBans()))
-print "usersnotauth.value %i" % (usersnotauth)
-  
+# Collect the data...
+onlineusers = server.getUsers()
+
+for key in onlineusers.keys():
+  if onlineusers[key].userid == -1:
+    users_unregistered += 1
+
+  if onlineusers[key].userid > 0:
+    users_registered += 1
+
+  if onlineusers[key].mute:
+    users_muted += 1
+
+  if onlineusers[key].selfMute:
+    users_muted += 1
+
+  if onlineusers[key].suppress:
+    users_muted += 1
+
+# Output the date to munin...
+if show_users_all:
+  print "usersall.value %i" % (len(onlineusers))
+
+if show_users_muted:
+  print "usersmuted.value %i" % (users_muted)
+
+if show_users_registered:
+  print "usersregistered.value %i" % (users_registered)
+
+if show_users_unregistered:
+  print "usersunregistered.value %i" % (users_unregistered)
+
+if show_ban_count:
+  print "bancount.value %i" % (len(server.getBans()))
+
+if show_channel_count:
+  print "channelcount.value %.1f" % (len(server.getChannels())/10)
+
+if show_uptime:
+  print "uptime.value %.2f" % (float(meta.getUptime())/60/60/24)
+
 ice.shutdown()
