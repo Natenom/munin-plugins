@@ -79,6 +79,7 @@ Ice.loadSlice("--all -I%s %s" % (iceincludepath, iceslice))
 props = Ice.createProperties([])
 props.setProperty("Ice.MessageSizeMax", str(messagesizemax))
 props.setProperty("Ice.ImplicitContext", "Shared")
+props.setProperty("Ice.Default.EncodingVersion", "1.0")
 id = Ice.InitializationData()
 id.properties = props
 
