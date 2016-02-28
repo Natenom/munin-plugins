@@ -43,7 +43,7 @@ show_users_muted = True # Server muted, self muted and server suppressed users.
 
 show_users_unregistered = True # Not registered users.
 
-show_users_registered = True # Registered users.
+show_users_registered = False # Registered users only.
 
 show_ban_count = True # Number of bans on the server; temporary global bans do not count.
 
