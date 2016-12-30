@@ -51,6 +51,8 @@ show_channel_count = True # Number of channels on the server (including the root
 
 show_uptime = True # Uptime of the server (in days)
 
+divide_chancount_by_ten = False # On servers with many channels the graph can become ugly. Set to True to divide channel count by 10.
+
 #Path to Murmur.ice; the script tries first to retrieve this file dynamically from Murmur itself; if this fails it tries this file.
 slicefile = "/usr/share/Ice/slice/Murmur.ice"
 
@@ -135,54 +137,8 @@ idata = Ice.InitializationData()
 idata.properties = props
 
 ice = Ice.initialize(idata)
-prx = ice.stringToProxy(prxstr)
 
-
-# Note that the code here to connect to Ice and dynamically download the ice file from Murmur
-# ifself is taken from http://wiki.mumble.info/wiki/Mice
-slicedir = Ice.getSliceDir()
-if not slicedir:
-    # Some platforms incorrectly return None as the slice path
-    # try to work around this for the known ones.
-    slicedir = ["-I/usr/share/Ice/slice", "-I/usr/share/slice"]
-else:
-    slicedir = ['-I' + slicedir]
-
-try:
-    # Trying to retrieve slice dynamically from server...
-    # Check IcePy version as this internal function changes between version.
-    # In case it breaks with future versions use slice2py and search for
-    # "IcePy.Operation('getSlice'," for updates in the generated bindings.
-    op = None
-    if IcePy.intVersion() < 30500L:
-        # Old 3.4 signature with 9 parameters
-        op = IcePy.Operation('getSlice', Ice.OperationMode.Idempotent, Ice.OperationMode.Idempotent, True, (), (), (), IcePy._t_string, ())
-
-    else:
-        # New 3.5 signature with 10 parameters.
-        op = IcePy.Operation('getSlice', Ice.OperationMode.Idempotent, Ice.OperationMode.Idempotent, True, None, (), (), (), ((), IcePy._t_string, False, 0), ())
-
-    slice = op.invoke(prx, ((), None))
-    (dynslicefiledesc, dynslicefilepath)  = tempfile.mkstemp(suffix = '.ice')
-    dynslicefile = os.fdopen(dynslicefiledesc, 'w')
-    dynslicefile.write(slice)
-    dynslicefile.flush()
-    Ice.loadSlice('', slicedir + [dynslicefilepath])
-    dynslicefile.close()
-    os.remove(dynslicefilepath)
-except Exception, e:
-    Ice.loadSlice('', slicedir + [slicefile])
-
-import Murmur
-
-if icesecret:
-    ice.getImplicitContext().put("secret", icesecret)
-# Connection to Ice done.
-
-meta = Murmur.MetaPrx.checkedCast(prx)
-server = meta.getServer(1)
-
-# Initialize
+# Initialize values
 users_all = 0
 users_muted = 0
 users_unregistered = 0
@@ -191,28 +147,87 @@ ban_count = 0
 channel_count = 0
 uptime = 0
 
-# Collect the data...
-onlineusers = server.getUsers()
+try:
+    prx = ice.stringToProxy(prxstr)
 
-for key in onlineusers.keys():
-  if onlineusers[key].userid == -1:
-    users_unregistered += 1
 
-  if onlineusers[key].userid > 0:
-    users_registered += 1
+    # Note that the code here to connect to Ice and dynamically download the ice file from Murmur
+    # ifself is taken from http://wiki.mumble.info/wiki/Mice
+    slicedir = Ice.getSliceDir()
+    if not slicedir:
+        # Some platforms incorrectly return None as the slice path
+        # try to work around this for the known ones.
+        slicedir = ["-I/usr/share/Ice/slice", "-I/usr/share/slice"]
+    else:
+        slicedir = ['-I' + slicedir]
 
-  if onlineusers[key].mute:
-    users_muted += 1
+    try:
+        # Trying to retrieve slice dynamically from server...
+        # Check IcePy version as this internal function changes between version.
+        # In case it breaks with future versions use slice2py and search for
+        # "IcePy.Operation('getSlice'," for updates in the generated bindings.
+        op = None
+        if IcePy.intVersion() < 30500L:
+            # Old 3.4 signature with 9 parameters
+            op = IcePy.Operation('getSlice', Ice.OperationMode.Idempotent, Ice.OperationMode.Idempotent, True, (), (), (), IcePy._t_string, ())
 
-  if onlineusers[key].selfMute:
-    users_muted += 1
+        else:
+            # New 3.5 signature with 10 parameters.
+            op = IcePy.Operation('getSlice', Ice.OperationMode.Idempotent, Ice.OperationMode.Idempotent, True, None, (), (), (), ((), IcePy._t_string, False, 0), ())
 
-  if onlineusers[key].suppress:
-    users_muted += 1
+        slice = op.invoke(prx, ((), None))
+        (dynslicefiledesc, dynslicefilepath)  = tempfile.mkstemp(suffix = '.ice')
+        dynslicefile = os.fdopen(dynslicefiledesc, 'w')
+        dynslicefile.write(slice)
+        dynslicefile.flush()
+        Ice.loadSlice('', slicedir + [dynslicefilepath])
+        dynslicefile.close()
+        os.remove(dynslicefilepath)
+    except Exception, e:
+        Ice.loadSlice('', slicedir + [slicefile])
+
+    import Murmur
+
+    if icesecret:
+        ice.getImplicitContext().put("secret", icesecret)
+    # Connection to Ice done.
+
+    meta = Murmur.MetaPrx.checkedCast(prx)
+    server = meta.getServer(1)
+
+    # Collect the data...
+    onlineusers = server.getUsers()
+
+    for key in onlineusers.keys():
+      if onlineusers[key].userid == -1:
+        users_unregistered += 1
+
+      if onlineusers[key].userid > 0:
+        users_registered += 1
+
+      if onlineusers[key].mute:
+        users_muted += 1
+
+      if onlineusers[key].selfMute:
+        users_muted += 1
+
+      if onlineusers[key].suppress:
+        users_muted += 1
+
+    ban_count = len(server.getBans())
+    users_all = len(onlineusers)
+    channel_count = len(server.getChannels())
+    uptime = float(meta.getUptime())/60/60/24
+
+    if divide_chancount_by_ten:
+        channel_count /= 10
+
+except Ice.ConnectionRefusedException:
+	pass
 
 # Output the information to munin...
 if show_users_all:
-  print "usersall.value %i" % (len(onlineusers))
+  print "usersall.value %i" % (users_all)
 
 if show_users_muted:
   print "usersmuted.value %i" % (users_muted)
@@ -224,13 +239,17 @@ if show_users_unregistered:
   print "usersunregistered.value %i" % (users_unregistered)
 
 if show_ban_count:
-  print "bancount.value %i" % (len(server.getBans()))
+  print "bancount.value %i" % (ban_count)
 
 if show_channel_count:
-  print "channelcount.value %.1f" % (len(server.getChannels())/10)
+  print "channelcount.value %.1f" % (channel_count)
 
 if show_uptime:
-  print "uptime.value %.2f" % (float(meta.getUptime())/60/60/24)
+  print "uptime.value %.2f" % (uptime)
 
-ice.shutdown()
+if IcePy.intVersion() > 30600L:
+    ice.destroy()
+else:
+    ice.shutdown()
+
 sys.exit(0)
