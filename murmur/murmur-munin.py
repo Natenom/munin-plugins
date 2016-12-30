@@ -53,6 +53,8 @@ show_uptime = True # Uptime of the server (in days)
 
 divide_chancount_by_ten = False # On servers with many channels the graph can become ugly. Set to True to divide channel count by 10.
 
+show_state = True # Show server state (1 = up, 0 = down)
+
 #Path to Murmur.ice; the script tries first to retrieve this file dynamically from Murmur itself; if this fails it tries this file.
 slicefile = "/usr/share/Ice/slice/Murmur.ice"
 
@@ -146,6 +148,7 @@ users_registered = 0
 ban_count = 0
 channel_count = 0
 uptime = 0
+state = 0
 
 try:
     prx = ice.stringToProxy(prxstr)
@@ -184,7 +187,10 @@ try:
         dynslicefile.close()
         os.remove(dynslicefilepath)
     except Exception, e:
-        Ice.loadSlice('', slicedir + [slicefile])
+        try:
+            Ice.loadSlice('', slicedir + [slicefile])
+        except:
+            raise Ice.ConnectionRefusedException
 
     import Murmur
 
@@ -222,6 +228,8 @@ try:
     if divide_chancount_by_ten:
         channel_count /= 10
 
+    state = 1
+
 except Ice.ConnectionRefusedException:
 	pass
 
@@ -246,6 +254,9 @@ if show_channel_count:
 
 if show_uptime:
   print "uptime.value %.2f" % (uptime)
+
+if show_state:
+  print "state.value %i" % (state)
 
 if IcePy.intVersion() > 30600L:
     ice.destroy()
