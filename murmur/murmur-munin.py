@@ -258,7 +258,7 @@ if show_uptime:
 if show_state:
   print "state.value %i" % (state)
 
-if IcePy.intVersion() > 30600L:
+if IcePy.intVersion() >= 30600L:
     ice.destroy()
 else:
     ice.shutdown()
